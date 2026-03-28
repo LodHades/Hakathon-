@@ -314,6 +314,7 @@ if __name__=="__main__":
     
     grafana_jsons_panels = agente_response['grafana_jsons_panels']
     path = settings.ROOT / "test" / "graphs_states" / "grafana" / "panels.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(grafana_jsons_panels, f, indent=2, ensure_ascii=False)
@@ -321,7 +322,7 @@ if __name__=="__main__":
 
 
 """
-python3 -m src.grafana_graph.graphs.create_dashboard_agent
+python3 -m src.services.DashboardAgent.graph.dashboardv1
 
 
 """
