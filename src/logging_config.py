@@ -1,9 +1,7 @@
-from pathlib import Path
 import logging
 from logging.handlers import RotatingFileHandler
 import shutil
-
-ROOT = Path(__file__).resolve().parent.parent.parent
+from src import settings
 
 
 def setup_base_logging():
@@ -33,7 +31,7 @@ def get_logger(module_name: str, DIR : str):
     Ejemplo: get_logger("graph1")
     """
 
-    LOG_DIR = ROOT / ".logs" / f"{DIR}"
+    LOG_DIR = settings.ROOT / ".logs" / f"{DIR}"
     LOG_DIR.mkdir(parents=True, exist_ok=True)   
 
     log_path = LOG_DIR / f"{module_name}.log"
