@@ -290,12 +290,14 @@ if __name__ == "__main__":
     analysis = doc
 
     path = settings.ROOT / "test" / "graphs_states" / "analyst" / "analysis.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         f.write(analysis)
 
     
 
 """
-python3 -m src.analyst_graph.graphs.create_analyst_agent
+python3 -m src.services.AnalystAgent.graph.analystv1.
+
 
 """

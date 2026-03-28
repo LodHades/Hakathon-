@@ -121,18 +121,21 @@ if __name__=="__main__":
 
 
     path = settings.ROOT / "test" / "graphs_states" / "analyst" / "plan.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         f.write(plan)
     
 
     path = settings.ROOT / "test" / "graphs_states" / "analyst" / "doc.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         f.write(doc)
     
     
 
 """
-python3 -m src.analyst_graph.graphs.create_planner_agent
+python3 -m src.services.AnalystAgent.graph.plannerv1
+
 
 """
 
