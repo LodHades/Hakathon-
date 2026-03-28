@@ -297,7 +297,7 @@ if __name__ == "__main__":
     
 
 """
-python3 -m src.services.AnalystAgent.graph.analystv1.
+python3 -m src.services.AnalystAgent.graph.analystv1
 
 
 """
