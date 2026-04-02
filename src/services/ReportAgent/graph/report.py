@@ -7,8 +7,9 @@ from ..prompts.report import (
     CODE_CHART_PROMPT_1, 
     BASE_CODE_AND_DESCRIPTION, 
     STREAMLIT_PROMPT_1, 
-    REPORT_PROMPT_1
+    REPORT_PROMPT_2
 )
+from src.services.ReportAgent.graph import schemas
 from src.services.AnalystAgent.toolkit import PostgresToolKit  # TODO: quizas PostgresToolKit debe ser una clase mas general
 import asyncio
 
@@ -50,7 +51,7 @@ async def get_code_from_description(semaphore, llm_coder : BaseChatModel, prompt
     async with semaphore:
         try:
             ai_response = await llm_coder.ainvoke(prompt)
-            logger.info(f"\n {ai_response.pretty_repr()} \n")
+            logger.info(f"\n\n\n {description} \n {ai_response.pretty_repr()} \n\n\n")
             chart_code = ai_response.content
 
             input_tokens = ai_response.usage_metadata.get("input_tokens", 0)
@@ -71,8 +72,10 @@ def get_documentation(schemas : Dict):
 
 
 def get_chart_description_documentation(code_charts_descriptions : Dict):
+    logger.info(f"**** get_chart_description_documentation")
     doc = ""
     for dicc in code_charts_descriptions:
+        logger.debug(f"dicc: {dicc}")
         doc += BASE_CODE_AND_DESCRIPTION.format(des=dicc['description'], code=dicc['chart_code'])
         doc += "\n\n"
     return doc
@@ -101,6 +104,7 @@ def create_report_agent(
         charts_description_list : List[str]
         extracted_tables_with_documentation : List[Dict[str, Any]]
         code_charts_descriptions : List[Dict[str, Any]]
+        doc_description_code : str
         streamlit_code : str
         report : str
 
@@ -144,6 +148,10 @@ def create_report_agent(
         logger.info(f"\n {ai_response.pretty_repr()}")
 
         charts_description_list = parser.parse(ai_response.content)
+        # TODO  implementar try except para la validacion con StructureIdeas
+        #schemas.StructureIdeas(charts_dict=charts_description_list)
+        if len(charts_description_list['charts']) == 0:
+            raise ValueError("charts_description_list es una lista vacia o no es una lista")
 
         input_tokens += ai_response.usage_metadata.get("input_tokens", 0)
         output_tokens += ai_response.usage_metadata.get("output_tokens", 0)
@@ -151,7 +159,7 @@ def create_report_agent(
         logger.info(f"input_tokens: {input_tokens}--output_tokens: {output_tokens}--api_calls: {api_calls}")
         logger.info("\n"*10)
 
-        return {"charts_description_list":charts_description_list, "input_tokens":input_tokens, "output_tokens":output_tokens, "api_calls":api_calls}
+        return {"charts_description_list":charts_description_list['charts'], "input_tokens":input_tokens, "output_tokens":output_tokens, "api_calls":api_calls}
     
 
 
@@ -229,7 +237,8 @@ def create_report_agent(
                 db_port=url.port,
                 db_name=url.database,
                 doc=get_documentation(doc_dict['schemas']),
-                description=doc_dict['description']
+                description=doc_dict['description'],
+                tables=doc_dict['tables_name']
             ) for doc_dict in extracted_tables_with_documentation
         ]
 
@@ -245,7 +254,7 @@ def create_report_agent(
                 llm_coder=llm_coder,
                 prompt=prompt_list[i],
                 description=description_list[i]
-            ) for i in len(extracted_tables_with_documentation)
+            ) for i in range(len(extracted_tables_with_documentation))
         ]
 
         result = await asyncio.gather(*tasks)
@@ -264,7 +273,7 @@ def create_report_agent(
 
         return {"code_charts_descriptions":code_charts_descriptions, "input_tokens":input_tokens, "output_tokens":output_tokens, "api_calls":api_calls}
     
-    # TODO: Falta hacer el prompt
+
     def get_streamlit_code_node(state : State) -> State:
         logger.info("xxx"*5 + " get_streamlit_code_node " + "xxx"*5) 
 
@@ -275,11 +284,12 @@ def create_report_agent(
         code_charts_descriptions = state["code_charts_descriptions"]
 
         doc = get_chart_description_documentation(code_charts_descriptions)
+        logger.debug(f"\n\n\n\n\n\n\n  {doc} \n\n\n\n\n\n\n")
         
         prompt = STREAMLIT_PROMPT_1.format(doc=doc)
         ai_response = llm_streamlit_coder.invoke(prompt)
-        logger.debug(f"\n {ai_response.pretty_print()} \n")
-        streamlit_code = parser.parse(ai_response.content)
+        logger.info(f"\n {ai_response.pretty_print()} \n")
+        streamlit_code = ai_response.content
 
         input_tokens += ai_response.usage_metadata.get("input_tokens", 0)
         output_tokens += ai_response.usage_metadata.get("output_tokens", 0)
@@ -287,10 +297,9 @@ def create_report_agent(
         logger.info(f"input_tokens: {input_tokens}--output_tokens: {output_tokens}--api_calls: {api_calls}")
         logger.info("\n"*10)
 
-        return {"streamlit_code":streamlit_code, "input_tokens":input_tokens, "output_tokens":output_tokens, "api_calls":api_calls}
+        return {"streamlit_code":streamlit_code, "input_tokens":input_tokens, "output_tokens":output_tokens, "api_calls":api_calls, "doc_description_code":doc}
     
 
-    # TODO: Falta hacer el prompt
     def get_report_code(state : State) -> State:
         logger.info("xxx"*5 + " get_streamlit_code_node " + "xxx"*5)
 
@@ -299,12 +308,12 @@ def create_report_agent(
         api_calls = state["api_calls"]
 
         streamlit = state["streamlit_code"]
-        analiysis = state["analysis"]
+        analysis = state["analysis"]
 
-        prompt = REPORT_PROMPT_1.format(streamlit=streamlit, analiysis=analiysis)
+        prompt = REPORT_PROMPT_2.format(streamlit=streamlit, analysis=analysis) # analysis
         ai_message = llm_report_writer.invoke(prompt)
         logger.debug(f"\n {ai_message.pretty_print()} \n")
-        report = parser.parse(ai_message.content)
+        report = ai_message.content
 
         input_tokens += ai_message.usage_metadata.get("input_tokens", 0)
         output_tokens += ai_message.usage_metadata.get("output_tokens", 0)
@@ -363,7 +372,7 @@ if __name__=="__main__":
     engine = create_engine(conn_string)
 
 
-    model = "gemini-2.5-pro"
+    model = "gemini-2.5-flash"
     llm_charts_designer = ChatGoogleGenerativeAI(model=model, temperature=0.5, google_api_key=settings.GOOGLE_API_KEY)
 
     model = "openai/gpt-oss-120b"
@@ -375,10 +384,46 @@ if __name__=="__main__":
     model = "gemini-2.5-flash"
     llm_streamlit_coder = ChatGoogleGenerativeAI(model=model, temperature=0.5, google_api_key=settings.GOOGLE_API_KEY)
 
-    model = "gemini-2.5-flash"
+    model = "gemini-2.5-pro"
     llm_report_writer = ChatGoogleGenerativeAI(model=model, temperature=0.5, google_api_key=settings.GOOGLE_API_KEY)
 
 
     report_agent = create_report_agent(llm_charts_designer=llm_charts_designer, llm_information_structurer=llm_information_structurer, llm_coder=llm_coder, llm_streamlit_coder=llm_streamlit_coder, llm_report_writer=llm_report_writer, engine=engine)
-
     
+    path = settings.ROOT / "test" / "graphs_states" / "analyst" / "analysis.md"
+    with open(path, 'r', encoding='utf-8') as f:
+        analysis = f.read()
+    initial_state = {'analysis':analysis}
+
+
+
+
+    agente_response = asyncio.run(report_agent.ainvoke(initial_state))
+
+
+    doc = agente_response['streamlit_code']
+    path = settings.ROOT / "test" / "graphs_states" / "report" / "streamlit_code.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(doc)
+
+
+    doc = agente_response['doc_description_code']
+    path = settings.ROOT / "test" / "graphs_states" / "report" / "doc_description_code.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(doc)
+
+
+    doc = agente_response['report']
+    path = settings.ROOT / "test" / "graphs_states" / "report" / "report.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(doc)    
+
+"""
+python3 -m src.services.ReportAgent.graph.report
+
+
+
+"""

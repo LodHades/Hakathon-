@@ -162,6 +162,11 @@ df = pd.read_sql_query(QUERY, engine)
 ### Descripción de la gráfica
 
 {description}
+
+
+### Tablas de la base de datos que usa la gráfica
+
+{tables}
 """
 
 
@@ -171,13 +176,25 @@ df = pd.read_sql_query(QUERY, engine)
 
 
 STREAMLIT_PROMPT_1 = """
-Eres un experto en la librería de python streamlit. resiviras un docuemento que contiene graficas hechas con la librería de python plotly y una descripcion que detalla la grafica.
-Tu tarea es hacer una aplicacion en streamlit que utilice estas graficas y sus descripciones.
+Eres un experto en desarrollo de aplicaciones con Python usando Streamlit.
 
-No hagas comentarios y solo limitate a generar el codigo python.
+Recibirás un documento que contiene:
+1. Gráficas creadas con la librería Plotly.
+2. Una descripción explicativa para cada gráfica.
 
-### Documento co las graficas y su descripcion:
+Tu tarea es construir una aplicación completa en Streamlit que:
+- Muestre correctamente cada gráfica usando Plotly.
+- Incluya su respectiva descripción de forma clara y bien presentada.
+- Organice el contenido de manera estructurada (por ejemplo: títulos, secciones, o contenedores).
+- Use buenas prácticas de Streamlit (st.title, st.header, st.markdown, st.plotly_chart, etc.).
+- Use try y except de tal forma que un error en una gráfica no altere las demas.
 
+Restricciones:
+- NO incluyas explicaciones, comentarios ni texto adicional fuera del código.
+- Devuelve únicamente código Python válido y ejecutable.
+- El código debe ser limpio, legible y funcional sin necesidad de modificaciones.
+
+### Documento con las gráficas y sus descripciones:
 {doc}
 """
 
@@ -190,13 +207,50 @@ No hagas comentarios y solo limitate a generar el codigo python.
 
 
 REPORT_PROMPT_1 = """
-eres un asistente util
+eres un asistente util. Resiviras el codigo de stremlit de graficas y sus descripciones y un reporte que se utilizó para elborar las graficas en streamlit
 
 {streamlit}
 
 ---
 
 {analiysis}
+"""
+
+
+
+
+REPORT_PROMPT_2 = """
+Eres un experto en análisis de datos y generación de reportes técnicos.
+
+Recibirás:
+1. Código de una aplicación en Streamlit que contiene gráficas (usando Plotly) junto con sus descripciones.
+2. Un análisis de datos detallado que fue utilizado para construir dichas gráficas.
+
+Tu tarea es generar un reporte final en stremlit que:
+- Integre de manera coherente el análisis y las gráficas.
+- Explique cada gráfica en contexto, conectándola con los hallazgos del análisis.
+- Profundice en la interpretación de los datos (patrones, tendencias, anomalías, implicaciones).
+- Presente conclusiones claras y bien fundamentadas.
+- Incluya posibles recomendaciones o insights accionables basados en los datos.
+
+Formato del reporte:
+- Título
+- Introducción
+- Metodología (breve, basada en el análisis proporcionado)
+- Análisis detallado (integrando gráficas y explicación)
+- Conclusiones
+- Recomendaciones (si aplica)
+
+Restricciones:
+Al generar tu respuesta no hagas comentarios y limitate a generar el reporte final en Streamlit
+
+### Código de Streamlit:
+{streamlit}
+
+---
+
+### Análisis de datos:
+{analysis}
 """
 
 
