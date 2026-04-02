@@ -7,3 +7,5 @@ langchain-groq==1.1.2
 langchain-deepseek==1.0.1
 uvicorn==0.42.0
 fastapi==0.135.2
+plotly==6.6.0
+streamlit==1.56.0
