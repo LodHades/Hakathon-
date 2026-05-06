@@ -25,7 +25,7 @@ class GrafanaHelper:
     # Paso 1: Crear un Service Account   
     # base_url = "http://localhost:3002"
     def make_service_account(self):
-        service_account_name = "Admin"
+        service_account_name = settings.GRAFANA_ADMIN_USER
         service_account_role = "Admin"
         
         
@@ -39,6 +39,7 @@ class GrafanaHelper:
         service_accounts_data = response_service_accounts.json()
                 
         service_accounts_list = service_accounts_data.get("serviceAccounts", []) if isinstance(service_accounts_data, dict) else service_accounts_data
+        #print(f"service_accounts_list: {service_accounts_list}")
 
         # Revisar si ya existe la cuenta de servicio
         for account in service_accounts_list:
@@ -63,9 +64,12 @@ class GrafanaHelper:
             service_accounts_data = response_service_accounts.json()
             service_accounts_list = service_accounts_data.get("serviceAccounts", []) if isinstance(service_accounts_data, dict) else service_accounts_data
             self.service_account_id = next((account["id"] for account in service_accounts_list if isinstance(account, dict) and account.get("name") == service_account_name), None)
+            #print(f"service_account_id: {self.service_account_id}")
         else:
             self.service_account_id = response_create_service_account.json()["id"]
+            #print(f"service_account_id: {self.service_account_id}")
 
+        #print("\n\n\n")
         return self.service_account_id
 
     # Paso 2: Crear un token para ese service account
@@ -161,7 +165,7 @@ class GrafanaHelper:
         print("Respuesta:", response.text)
 
         if response.status_code >= 300:
-            raise Exception(f"Hubo un error al crear el datasource. Revisa los que bigbang tenga acceso a tu db y que las credenciales sean correctas: {response.text}")
+            raise Exception(f"Hubo un error al crear el datasource. Revisa que se tenga acceso a tu db y que las credenciales sean correctas: {response.text}")
             
         
         datasource_response = response.json()["datasource"]
@@ -248,8 +252,8 @@ class GrafanaHelper:
         
         dashboard_json = copy.deepcopy(grafana_json)
 
-        dashboard_json["uid"] = str(uuid.uuid4())
-        dashboard_json["version"] = 1
+        # dashboard_json["uid"] = str(uuid.uuid4())
+        # dashboard_json["version"] = 1
 
         # Título estable (sin UUID si no es necesario)
         #dashboard_json["title"] = dashboard_json.get("title", "Dashboard")[:40]
@@ -283,3 +287,74 @@ class GrafanaHelper:
 
 
 
+if __name__ == "__main__":
+    from src import settings
+    import json
+
+    base_url = settings.GRAFANA_URL
+    grafan_helper = GrafanaHelper(base_url=base_url)
+
+    # service_account = grafan_helper.make_service_account()
+    # print("\n"*3)
+    # print(f"Paso 1 conseguimos el service account: \n\n service_account: {service_account} \n\n")
+    # print("\n"*3)
+
+    # # TODO: Este paso no estoy seguro si solo se hace una vez
+    # print("Paso 2: Crear un token para ese service account")
+    # token = grafan_helper.get_token_account()
+    # print(f"\n token: {token}")
+    # print("\n"*3)
+
+    # print("Paso 3: unimos grafana y la db")
+    #  # Credenciales de la db a la cual se quiere hacer un analisis de datos. No confundir con la db de la app
+
+    # # Credenciales de mi db Northwind
+    # db_user = "postgres"
+    # db_password = "postgres"
+    # db_host = "localhost"  # TODO aqui es docker internal: 172.17.0.1
+    # db_name = "northwind"
+    # db_port = 5434
+
+
+    # uid = grafan_helper.get_db_grafana_uid(db_user=db_user, db_password=db_password, db_host=db_host, db_name=db_name, db_port=db_port)
+    
+    # print(f"uid: {uid}") # uid: efhwncoiqm41sa
+
+    # Ahora que conseguimos el token subamos un dashboard, como sabemos que el uid de la db es efhwncoiqm41sa entonces:
+
+
+    print("\n"*3)
+    print("Solicitud  para mirar las db´s relacionadas a grafana")
+
+    #grafan_helper.get_all_uid_db()
+    grafan_helper.token = settings.GRAFANA_SERVICE_ACCOUNT_TOKEN
+
+    print("\n"*3)
+    print("Solicitus para dado grafana_json construir un dashboard")
+
+    path = settings.ROOT / "test" / "graphs_states" / "grafana" / "panels.json"
+    with open(path, 'r', encoding='utf-8') as f:
+        grafana_panels_json = json.load(f)
+
+    # panel = grafana_panels_json[0]
+    # print(panel.keys())
+    # print("\n\n")
+    # print(panel['datasource'])
+
+    for panel in grafana_panels_json:
+        panel['datasource']['uid'] = 'efhwncoiqm41sa'
+    
+    # fist_panel = grafana_panels_json[0]
+    # print(fist_panel['datasource'])
+
+    grafana_json = {'title':'Northwind-Dashboard', 'panels':grafana_panels_json}
+
+    grafan_helper.push_grafana_dashboard(grafana_json=grafana_json)
+
+
+
+"""
+python3 -m src.services.grafana_helper
+
+
+"""

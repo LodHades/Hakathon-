@@ -51,7 +51,8 @@ DEEP_SEEK_API_KEY = os.getenv("DEEP_SEEK_API_KEY")
 # GRAFANA CONF
 # =============================================================================
 
-GRAFANA_URL = os.getenv("GRAFANA_URL")
+GRAFANA_PORT = os.getenv("GRAFANA_PORT")
+GRAFANA_URL = f"http://localhost:{GRAFANA_PORT}"
 GRAFANA_ADMIN_USER = os.getenv("GRAFANA_ADMIN_USER")
 GRAFANA_ADMIN_PASSWORD = os.getenv("GRAFANA_ADMIN_PASSWORD")
 GRAFANA_SERVICE_ACCOUNT_TOKEN = os.getenv("GRAFANA_SERVICE_ACCOUNT_TOKEN")
