@@ -1,4 +1,4 @@
-# MED-data-analyst-agent
+# Data-analyst-agent
 Agente para análisis de datos (FastAPI + CopilotKit + LangGraph) con tools vía MCP:
 
 - `mcp_server`: Pandas + Docling (server propio)
