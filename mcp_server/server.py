@@ -17,13 +17,13 @@ import sys
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.cache import TTLCache
+from mcp_server.cache import make_cache
 from mcp_server.tools import docling_tools, pandas_tools
 
 
 def build_mcp(host: str = "0.0.0.0", port: int = 8765) -> FastMCP:
     mcp = FastMCP(name="data-mcp", host=host, port=port)
-    cache = TTLCache(ttl_seconds=3600, maxsize=100)
+    cache = make_cache(ttl_seconds=3600, maxsize=100)
     pandas_tools.register(mcp, cache)
     docling_tools.register(mcp, cache)
     return mcp

@@ -1,71 +1,86 @@
-"""TTL cache thread-safe en proceso para DataFrames, textos y documentos."""
+"""Helpers de cache para el MCP server.
+
+Usa `cachetools.TTLCache` directamente (sin clase custom) y provee helpers
+para:
+  - generar IDs (`df_<...>`, `txt_<...>`, `doc_<...>`)
+  - `require` con error claro
+  - mantener "sliding TTL" (renovar TTL en cada acceso)
+
+Nota: `cachetools` no es thread-safe por defecto, por eso los helpers
+sincronizan por cache instancia.
+"""
 
 from __future__ import annotations
 
-import threading
-import time
+from threading import RLock
 from typing import Any
 from uuid import uuid4
 
+from cachetools import TTLCache
 
-class TTLCache:
-    def __init__(self, ttl_seconds: int = 3600, maxsize: int = 100) -> None:
-        self._data: dict[str, tuple[float, Any]] = {}
-        self._ttl = ttl_seconds
-        self._maxsize = maxsize
-        self._lock = threading.Lock()
 
-    def put(self, value: Any, prefix: str = "obj") -> str:
-        key = f"{prefix}_{uuid4().hex[:12]}"
-        expires_at = time.time() + self._ttl
-        with self._lock:
-            self._evict_if_needed_locked()
-            self._data[key] = (expires_at, value)
-        return key
+def make_cache(*, ttl_seconds: int = 3600, maxsize: int = 100) -> TTLCache:
+    cache = TTLCache(maxsize=maxsize, ttl=ttl_seconds)
+    # cachetools caches no son thread-safe; guardamos el lock en la instancia.
+    setattr(cache, "_mcp_lock", RLock())
+    return cache
 
-    def get(self, key: str) -> Any | None:
-        """Retorna el valor cacheado y renueva su TTL (sliding TTL)."""
-        with self._lock:
-            entry = self._data.get(key)
-            if entry is None:
-                return None
-            expires_at, value = entry
-            now = time.time()
-            if now > expires_at:
-                del self._data[key]
-                return None
-            self._data[key] = (now + self._ttl, value)
-            return value
 
-    def require(self, key: str) -> Any:
-        value = self.get(key)
-        if value is None:
-            raise KeyError(f"id '{key}' no encontrado o expirado")
+def _lock_for(cache: TTLCache) -> RLock:
+    lock = getattr(cache, "_mcp_lock", None)
+    if lock is not None:
+        return lock
+    lock = RLock()
+    setattr(cache, "_mcp_lock", lock)
+    return lock
+
+
+def cache_put(cache: TTLCache, value: Any, *, prefix: str = "obj") -> str:
+    key = f"{prefix}_{uuid4().hex[:12]}"
+    with _lock_for(cache):
+        cache[key] = value
+    return key
+
+
+def cache_get(cache: TTLCache, key: str) -> Any | None:
+    """Retorna el valor cacheado y renueva su TTL (sliding TTL)."""
+    with _lock_for(cache):
+        try:
+            value = cache[key]
+        except KeyError:
+            return None
+
+        # Sliding TTL: reinsertar para resetear el TTL.
+        cache.pop(key, None)
+        cache[key] = value
         return value
 
-    def delete(self, key: str) -> bool:
-        with self._lock:
-            return self._data.pop(key, None) is not None
 
-    def clear(self) -> int:
-        with self._lock:
-            n = len(self._data)
-            self._data.clear()
-            return n
+def cache_require(cache: TTLCache, key: str) -> Any:
+    value = cache_get(cache, key)
+    if value is None:
+        raise KeyError(f"id '{key}' no encontrado o expirado")
+    return value
 
-    def keys(self) -> list[str]:
-        with self._lock:
-            self._purge_expired_locked()
-            return list(self._data.keys())
 
-    def _evict_if_needed_locked(self) -> None:
-        self._purge_expired_locked()
-        if len(self._data) >= self._maxsize:
-            oldest_key = min(self._data, key=lambda k: self._data[k][0])
-            del self._data[oldest_key]
+def cache_delete(cache: TTLCache, key: str) -> bool:
+    with _lock_for(cache):
+        return cache.pop(key, None) is not None
 
-    def _purge_expired_locked(self) -> None:
-        now = time.time()
-        expired = [k for k, (exp, _) in self._data.items() if now > exp]
-        for k in expired:
-            del self._data[k]
+
+def cache_clear(cache: TTLCache) -> int:
+    with _lock_for(cache):
+        n = len(cache)
+        cache.clear()
+        return n
+
+
+def cache_keys(cache: TTLCache) -> list[str]:
+    with _lock_for(cache):
+        # Fuerza purge de expirados sin depender de APIs internas
+        for k in list(cache.keys()):
+            try:
+                _ = cache[k]
+            except KeyError:
+                pass
+        return list(cache.keys())

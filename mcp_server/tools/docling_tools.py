@@ -9,7 +9,9 @@ from typing import Any
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.cache import TTLCache
+from cachetools import TTLCache
+
+from mcp_server.cache import cache_put, cache_require
 
 
 def register(mcp: FastMCP, cache: TTLCache) -> None:
@@ -32,7 +34,7 @@ def register(mcp: FastMCP, cache: TTLCache) -> None:
         markdown = document.export_to_markdown()
         tables = list(getattr(document, "tables", []) or [])
 
-        doc_id = cache.put({"document": document, "tables": tables}, prefix="doc")
+        doc_id = cache_put(cache, {"document": document, "tables": tables}, prefix="doc")
 
         return {
             "doc_id": doc_id,
@@ -44,14 +46,14 @@ def register(mcp: FastMCP, cache: TTLCache) -> None:
     @mcp.tool()
     def get_document_markdown(doc_id: str) -> dict[str, Any]:
         """Retorna el markdown del documento cacheado."""
-        entry = cache.require(doc_id)
+        entry = cache_require(cache, doc_id)
         markdown = entry["document"].export_to_markdown()
         return {"doc_id": doc_id, "markdown": markdown}
 
     @mcp.tool()
     def list_document_tables(doc_id: str) -> dict[str, Any]:
         """Lista las tablas detectadas en el documento."""
-        entry = cache.require(doc_id)
+        entry = cache_require(cache, doc_id)
         tables = entry["tables"]
         summary = []
         for i, table in enumerate(tables):
@@ -65,14 +67,14 @@ def register(mcp: FastMCP, cache: TTLCache) -> None:
 
         Retorna `df_id` para que `df_head`, `df_query`, etc., la consuman.
         """
-        entry = cache.require(doc_id)
+        entry = cache_require(cache, doc_id)
         tables = entry["tables"]
         if not (0 <= index < len(tables)):
             raise IndexError(f"índice {index} fuera de rango (tablas: {len(tables)})")
 
         table = tables[index]
         df = table.export_to_dataframe()
-        df_id = cache.put(df, prefix="df")
+        df_id = cache_put(cache, df, prefix="df")
         return {
             "df_id": df_id,
             "doc_id": doc_id,
