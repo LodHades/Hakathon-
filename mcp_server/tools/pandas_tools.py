@@ -32,6 +32,7 @@ def _records(df: pd.DataFrame, n: int) -> list[dict[str, Any]]:
 
 
 def register(mcp: FastMCP, cache: TTLCache) -> None:
+    
     @mcp.tool()
     def read_csv(
         path: str,

@@ -27,6 +27,7 @@ def register(mcp: FastMCP, cache: TTLCache) -> None:
         from docling.document_converter import DocumentConverter
 
         logger.info(f"parse_document path={path}")
+        
         converter = DocumentConverter()
         result = converter.convert(path)
         document = result.document
@@ -46,19 +47,24 @@ def register(mcp: FastMCP, cache: TTLCache) -> None:
     @mcp.tool()
     def get_document_markdown(doc_id: str) -> dict[str, Any]:
         """Retorna el markdown del documento cacheado."""
+        
         entry = cache_require(cache, doc_id)
         markdown = entry["document"].export_to_markdown()
+        
         return {"doc_id": doc_id, "markdown": markdown}
 
     @mcp.tool()
     def list_document_tables(doc_id: str) -> dict[str, Any]:
         """Lista las tablas detectadas en el documento."""
+        
         entry = cache_require(cache, doc_id)
         tables = entry["tables"]
         summary = []
+        
         for i, table in enumerate(tables):
             label = getattr(table, "label", None) or getattr(table, "self_ref", f"table_{i}")
             summary.append({"index": i, "label": str(label)})
+        
         return {"doc_id": doc_id, "num_tables": len(tables), "tables": summary}
 
     @mcp.tool()
@@ -75,6 +81,7 @@ def register(mcp: FastMCP, cache: TTLCache) -> None:
         table = tables[index]
         df = table.export_to_dataframe()
         df_id = cache_put(cache, df, prefix="df")
+        
         return {
             "df_id": df_id,
             "doc_id": doc_id,

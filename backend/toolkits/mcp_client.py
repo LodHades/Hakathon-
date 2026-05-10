@@ -21,22 +21,29 @@ from backend.settings import settings
 
 
 class MCPClient:
+    
     def __init__(self, servers: dict[str, dict[str, Any]]):
         self._servers = servers
         self._client: MultiServerMCPClient | None = None
 
     async def get_tools(self) -> list[BaseTool]:
+    
         if self._client is None:
+    
             logger.bind(module="mcp_client").info(
                 f"inicializando MultiServerMCPClient con {list(self._servers)}"
             )
+    
             self._client = MultiServerMCPClient(self._servers)
+    
         tools = await self._client.get_tools()
         logger.bind(module="mcp_client").info(f"{len(tools)} tools cargadas desde MCP")
+    
         return tools
 
 
 def _data_mcp_config() -> dict[str, Any]:
+    
     if settings.MCP_DATA_TRANSPORT == "stdio":
         return {
             "command": settings.MCP_DATA_COMMAND,
@@ -44,6 +51,7 @@ def _data_mcp_config() -> dict[str, Any]:
             "transport": "stdio",
             "cwd": str(settings.ROOT),
         }
+    
     return {
         "url": settings.MCP_DATA_URL,
         "transport": "sse",
@@ -54,6 +62,7 @@ def _external_mcp_config(
     transport: str, command: str, args: str, url: str
 ) -> dict[str, Any]:
     """Config para MCPs externos (Snowflake, BigQuery) — credenciales vía env."""
+    
     if transport == "stdio":
         return {
             "command": command,
@@ -61,10 +70,12 @@ def _external_mcp_config(
             "transport": "stdio",
             "env": dict(os.environ),
         }
+    
     if not url:
         raise ValueError(
             "MCP transport=sse requiere URL (p.ej. MCP_SNOWFLAKE_URL / MCP_BIGQUERY_URL)"
         )
+    
     return {"url": url, "transport": "sse"}
 
 
