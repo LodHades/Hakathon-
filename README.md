@@ -1,7 +1,7 @@
 # Data-analyst-agent
 Agente para análisis de datos (FastAPI + CopilotKit + LangGraph) con tools vía MCP:
 
-- `mcp_server`: Pandas + Docling (server propio)
+- Pandas + Docling (server propio, `mcp_server`) 
 - Snowflake (opcional, MCP externo vía `uvx mcp-server-snowflake`)
 - BigQuery/GCP (opcional, MCP externo vía `uvx mcp-server-bigquery`)
 
@@ -23,3 +23,6 @@ El backend puede lanzar estos MCPs como subprocesos (transport `stdio`) si:
 - `MCP_BIGQUERY_ENABLED=true` y `GCP_PROJECT_ID` + `GOOGLE_APPLICATION_CREDENTIALS` configuradas
 
 Nota: si usas `GOOGLE_APPLICATION_CREDENTIALS`, monta el archivo JSON en el contenedor (por ejemplo con un volume).
+
+## Roadmap
+- Integrar un modelo fine-tuneado con capacidades agenticas especializadas en analyst, preferentemente este: [CoPaw Flash 9B Data Analyst](https://huggingface.co/jason1966/CoPaw-Flash-9B-DataAnalyst-LoRA)
